@@ -2,21 +2,13 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import pandas as pd
 import joblib
-
-# ==========================================
 # FastAPI App
-# ==========================================
-
 app = FastAPI(
     title="ISRO Climate Prediction API",
     description="Rainfall Prediction API",
     version="1.0"
 )
-
-# ==========================================
 # Load Models
-# ==========================================
-
 rainfall_model = joblib.load(
     r"C:\Users\HP\ISRO_Project\Models\rainfall_model.pkl"
 )
@@ -28,31 +20,21 @@ max_temp_model = joblib.load(
 min_temp_model = joblib.load(
     r"C:\Users\HP\ISRO_Project\Models\min_temperature_model.pkl"
 )
-
-# ==========================================
-# Load Engineered Dataset
-# ==========================================
-
+# Load Dataset
 history_df = pd.read_csv(
     r"C:\Users\HP\ISRO_Project\Final_Dataset\climate_data_engineered.csv"
 )
 
 history_df["Date"] = pd.to_datetime(history_df["Date"])
 
-# ==========================================
 # Home API
-# ==========================================
-
 @app.get("/")
 def home():
     return {
         "message": "ISRO Climate Prediction API Running Successfully"
     }
 
-# ==========================================
 # Input Model
-# ==========================================
-
 class RainfallInput(BaseModel):
     Latitude: float
     Longitude: float
@@ -60,11 +42,7 @@ class RainfallInput(BaseModel):
     Max_Temperature: float
     Min_Temperature: float
     Rainfall: float
-
-# ==========================================
 # Rainfall Prediction API
-# ==========================================
-
 @app.post("/predict/rainfall")
 def predict_rainfall(data: RainfallInput):
 
@@ -86,26 +64,21 @@ def predict_rainfall(data: RainfallInput):
     temp_difference = (
         data.Max_Temperature - data.Min_Temperature
     )
-
-    # Historical data for same location
     history = history_df[
         (history_df["Latitude"] == data.Latitude) &
         (history_df["Longitude"] == data.Longitude)
     ]
 
-    # Use records on or before requested date
     history = history[
         history["Date"] <= input_date
     ].sort_values("Date")
 
-    # Fallback: latest record for that location
     if history.empty:
         history = history_df[
             (history_df["Latitude"] == data.Latitude) &
             (history_df["Longitude"] == data.Longitude)
         ].sort_values("Date")
 
-    # If location not found
     if history.empty:
         return {
             "success": False,
