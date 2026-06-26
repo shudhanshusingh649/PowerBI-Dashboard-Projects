@@ -2,27 +2,34 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import pandas as pd
 import joblib
+from pathlib import Path
+
+# Base Path
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 # FastAPI App
 app = FastAPI(
     title="ISRO Climate Prediction API",
     description="Rainfall Prediction API",
     version="1.0"
 )
+
 # Load Models
+
 rainfall_model = joblib.load(
-    r"C:\Users\HP\ISRO_Project\Models\rainfall_model.pkl"
+    BASE_DIR / "Models" / "rainfall_model.pkl"
 )
 
 max_temp_model = joblib.load(
-    r"C:\Users\HP\ISRO_Project\Models\max_temperature_model.pkl"
+    BASE_DIR / "Models" / "max_temperature_model.pkl"
 )
 
 min_temp_model = joblib.load(
-    r"C:\Users\HP\ISRO_Project\Models\min_temperature_model.pkl"
+    BASE_DIR / "Models" / "min_temperature_model.pkl"
 )
 # Load Dataset
 history_df = pd.read_csv(
-    r"C:\Users\HP\ISRO_Project\Final_Dataset\climate_data_engineered.csv"
+    BASE_DIR / "Final_Dataset" / "climate_data_engineered.csv"
 )
 
 history_df["Date"] = pd.to_datetime(history_df["Date"])
