@@ -1,20 +1,20 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import pandas as pd
 import joblib
+import pandas as pd
+import numpy as np
 from pathlib import Path
 
-# Base Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# FastAPI App
+
 app = FastAPI(
     title="ISRO Climate Prediction API",
-    description="Rainfall Prediction API",
-    version="1.0"
+    description="Climate Prediction using Machine Learning",
+    version="2.0"
 )
 
-# Load Models
 
 rainfall_model = joblib.load(
     BASE_DIR / "Models" / "rainfall_model.pkl"
@@ -27,38 +27,30 @@ max_temp_model = joblib.load(
 min_temp_model = joblib.load(
     BASE_DIR / "Models" / "min_temperature_model.pkl"
 )
-# Load Dataset
-history_df = pd.read_csv(
-    BASE_DIR / "Final_Dataset" / "climate_data_engineered.csv"
-)
 
-history_df["Date"] = pd.to_datetime(history_df["Date"])
 
-# Home API
 @app.get("/")
 def home():
-    return {
-        "message": "ISRO Climate Prediction API Running Successfully"
-    }
 
-# Input Model
-class RainfallInput(BaseModel):
+    return {
+        "Message": "ISRO Climate Prediction API Running Successfully"
+    }
+class ClimateInput(BaseModel):
     Latitude: float
     Longitude: float
     Date: str
     Max_Temperature: float
     Min_Temperature: float
     Rainfall: float
-# Rainfall Prediction API
-@app.post("/predict/rainfall")
-def predict_rainfall(data: RainfallInput):
+    def create_features(data: ClimateInput):
 
     input_date = pd.to_datetime(data.Date)
 
     year = input_date.year
     month = input_date.month
+    day = input_date.day
+    day_of_year = input_date.dayofyear
 
-    # Season
     if month in [12, 1, 2]:
         season = 0
     elif month in [3, 4, 5]:
@@ -68,60 +60,49 @@ def predict_rainfall(data: RainfallInput):
     else:
         season = 3
 
-    temp_difference = (
-        data.Max_Temperature - data.Min_Temperature
-    )
-    history = history_df[
-        (history_df["Latitude"] == data.Latitude) &
-        (history_df["Longitude"] == data.Longitude)
-    ]
+    temp_difference = data.Max_Temperature - data.Min_Temperature
 
-    history = history[
-        history["Date"] <= input_date
-    ].sort_values("Date")
+    avg_temperature = (
+        data.Max_Temperature +
+        data.Min_Temperature
+    ) / 2
 
-    if history.empty:
-        history = history_df[
-            (history_df["Latitude"] == data.Latitude) &
-            (history_df["Longitude"] == data.Longitude)
-        ].sort_values("Date")
+    temp_range = temp_difference
 
-    if history.empty:
-        return {
-            "success": False,
-            "message": "No historical data found for this location."
-        }
+    month_sin = np.sin(2 * np.pi * month / 12)
+    month_cos = np.cos(2 * np.pi * month / 12)
 
-    latest = history.iloc[-1]
+    day_sin = np.sin(2 * np.pi * day_of_year / 365)
+    day_cos = np.cos(2 * np.pi * day_of_year / 365)
 
-    input_df = pd.DataFrame([{
+    latitude_square = data.Latitude ** 2
+    longitude_square = data.Longitude ** 2
+
+    lat_long = data.Latitude * data.Longitude
+
+    monsoon = 1 if month in [6, 7, 8, 9] else 0
+
+    return pd.DataFrame([{
         "Latitude": data.Latitude,
         "Longitude": data.Longitude,
         "Max_Temperature": data.Max_Temperature,
         "Min_Temperature": data.Min_Temperature,
-        "Temp_Difference": temp_difference,
         "Rainfall": data.Rainfall,
-        "Rainfall_Lag1": latest["Rainfall_Lag1"],
-        "Rainfall_Rolling3": latest["Rainfall_Rolling3"],
-        "Rainfall_Rolling7": latest["Rainfall_Rolling7"],
-        "MaxTemp_Lag1": latest["MaxTemp_Lag1"],
-        "MinTemp_Lag1": latest["MinTemp_Lag1"],
         "Year": year,
         "Month": month,
-        "Season": season
+        "Day": day,
+        "DayOfYear": day_of_year,
+        "Season": season,
+        "Temp_Difference": temp_difference,
+        "Avg_Temperature": avg_temperature,
+        "Temp_Range": temp_range,
+        "Month_sin": month_sin,
+        "Month_cos": month_cos,
+        "Day_sin": day_sin,
+        "Day_cos": day_cos,
+        "Latitude_Square": latitude_square,
+        "Longitude_Square": longitude_square,
+        "Lat_Long": lat_long,
+        "Monsoon": monsoon
     }])
-
-    prediction = rainfall_model.predict(input_df)
-
-    return {
-        "success": True,
-        "location": {
-            "Latitude": data.Latitude,
-            "Longitude": data.Longitude
-        },
-        "date": data.Date,
-        "prediction": {
-            "Predicted_Rainfall_Next_Day": round(float(prediction[0]), 2),
-            "unit": "mm"
-        }
-    }
+    
