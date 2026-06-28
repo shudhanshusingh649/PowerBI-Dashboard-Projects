@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck, AlertCircle, Sparkles } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../services/api";
 import RecommendationCard from "../components/RecommendationCard";
 
@@ -17,6 +18,7 @@ export default function Recommendations() {
         setRecommendations(response.data || []);
       } catch (err) {
         setError("Unable to load the cooling playbook. Please check the backend connection.");
+        toast.error("Recommendation feed unavailable");
       } finally {
         setLoading(false);
       }

@@ -1,165 +1,264 @@
-import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
-import { Map as MapIcon, Navigation, ThermometerSun, Users, AlertTriangle } from "lucide-react";
-import "leaflet/dist/leaflet.css";
-import api from "../services/api";
+import { useState } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+} from "react-leaflet";
 
-function HeatMap() {
-  const [zones, setZones] = useState([]);
-  const [loading, setLoading] = useState(true);
+import L from "leaflet";
 
-  // Fallback to Patna coordinates if no data is present
-  const mapCenter = useMemo(() => {
-    if (!zones.length) {
-      return [25.5941, 85.1376]; 
+import {
+  MapPin,
+  Brain,
+  CloudRain,
+  ThermometerSun,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
+
+import { predictAll } from "../services/climateApi";
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+function LocationMarker({
+  position,
+  setPosition,
+}) {
+  useMapEvents({
+    click(e) {
+      setPosition(e.latlng);
+    },
+  });
+
+  return position ? (
+    <Marker position={position}>
+      <Popup>
+        Selected Location
+      </Popup>
+    </Marker>
+  ) : null;
+}
+
+export default function HeatMap() {
+  const [position, setPosition] = useState({
+    lat: 28.6139,
+    lng: 77.209,
+  });
+
+  const [prediction, setPrediction] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+
+  const predict = async () => {
+    setLoading(true);
+
+    try {
+      const res = await predictAll({
+        Latitude: position.lat,
+        Longitude: position.lng,
+        Date: new Date().toISOString().split("T")[0],
+        Max_Temperature: 35,
+        Min_Temperature: 25,
+        Rainfall: 5,
+      });
+
+      setPrediction(res.data);
+
+      toast.success("Heat map prediction ready");
+    } catch (err) {
+      console.log(err);
+
+      toast.error("Unable to generate the heat map prediction");
     }
 
-    const averageLat = zones.reduce((sum, zone) => sum + zone.lat, 0) / zones.length;
-    const averageLng = zones.reduce((sum, zone) => sum + zone.lng, 0) / zones.length;
-
-    return [averageLat, averageLng];
-  }, [zones]);
-
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const res = await api.get("/zones");
-        setZones(res.data);
-      } catch (error) {
-        console.error("Failed to fetch zones:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchZones();
-  }, []);
+    setLoading(false);
+  };
 
   return (
-    <div className="space-y-6 pb-8 animate-in fade-in duration-500">
-      {/* Header Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 px-8 py-10 text-white shadow-xl shadow-slate-200/50">
-        {/* Decorative blur */}
-        <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl"></div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <MapIcon size={20} className="text-orange-400" />
-            <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">
-              Spatial Analysis
-            </p>
-          </div>
-          <h1 className="text-3xl font-black tracking-tight md:text-4xl">
-            Urban Heat Intensity Map
-          </h1>
-          <p className="mt-2 max-w-2xl text-slate-300 text-sm leading-relaxed">
-            Live geographical tracking of thermal hotspots across monitored wards. Markers reflect real-time API data aligned with the prediction pipeline.
-          </p>
+    <div className="space-y-8">
+
+      <div>
+
+        <h1 className="text-4xl font-black">
+
+          Digital Twin Heat Map
+
+        </h1>
+
+        <p className="text-slate-500 mt-2">
+
+          Click anywhere on the map to generate AI prediction.
+
+        </p>
+
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+
+        <div className="lg:col-span-2 bg-white rounded-3xl overflow-hidden shadow-lg">
+
+          <MapContainer
+            center={[28.6139, 77.209]}
+            zoom={5}
+            style={{
+              height: "650px",
+              width: "100%",
+            }}
+          >
+
+            <TileLayer
+              attribution="OpenStreetMap"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            <LocationMarker
+              position={position}
+              setPosition={setPosition}
+            />
+
+          </MapContainer>
+
         </div>
-      </section>
 
-      {/* Map Container */}
-      <div className="relative overflow-hidden rounded-3xl bg-white p-2 shadow-sm border border-slate-100">
-        {loading ? (
-          // Premium Loading State
-          <div className="flex h-[600px] w-full flex-col items-center justify-center rounded-2xl bg-slate-50">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-orange-500 mb-4"></div>
-            <p className="text-sm font-medium text-slate-500">Connecting to telemetry...</p>
-          </div>
-        ) : (
-          <div className="h-[600px] w-full rounded-2xl overflow-hidden shadow-inner border border-slate-100">
-            <MapContainer
-              center={mapCenter}
-              zoom={12}
-              style={{ height: "100%", width: "100%" }}
+        <div className="space-y-6">
+
+          <div className="bg-white rounded-3xl p-6 shadow">
+
+            <div className="flex gap-2 items-center">
+
+              <MapPin className="text-blue-600" />
+
+              <h2 className="font-bold text-xl">
+
+                Selected Location
+
+              </h2>
+
+            </div>
+
+            <div className="mt-6 space-y-4">
+
+              <p>
+
+                <strong>Latitude :</strong>
+
+                {position.lat.toFixed(4)}
+
+              </p>
+
+              <p>
+
+                <strong>Longitude :</strong>
+
+                {position.lng.toFixed(4)}
+
+              </p>
+
+            </div>
+
+            <button
+              onClick={predict}
+              className="mt-8 w-full bg-blue-600 text-white py-4 rounded-xl flex justify-center gap-3"
             >
-              {/* Using a cleaner, more muted tile layer option if you want to swap it later, but standard OSM works great */}
-              <TileLayer 
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              />
 
-              {zones.map((zone) => {
-                // Using Tailwind corresponding hex codes for perfect color matching
-                const isHigh = zone.risk === "High";
-                const isMedium = zone.risk === "Medium";
-                
-                const color = isHigh ? "#ef4444" : isMedium ? "#f97316" : "#10b981";
-                const radius = isHigh ? 18 : isMedium ? 14 : 10;
+              <Brain />
 
-                return (
-                  <CircleMarker
-                    key={zone._id || zone.city}
-                    center={[zone.lat, zone.lng]}
-                    radius={radius}
-                    pathOptions={{
-                      color: color,
-                      fillColor: color,
-                      fillOpacity: isHigh ? 0.6 : 0.4,
-                      weight: 2,
-                    }}
-                  >
-                    <Popup className="rounded-xl font-sans">
-                      <div className="p-1 min-w-[180px]">
-                        <div className="mb-2 border-b border-slate-100 pb-2">
-                          <div className="flex items-center gap-2 font-bold text-slate-800 text-base">
-                            <Navigation size={16} className="text-blue-500" />
-                            {zone.city}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm text-slate-600">
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5"><ThermometerSun size={14}/> Temp:</span>
-                            <span className="font-semibold text-slate-900">{zone.temperature}°C</span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5"><AlertTriangle size={14}/> Risk:</span>
-                            <span className={`font-semibold px-2 py-0.5 rounded text-xs ${
-                              isHigh ? "bg-red-100 text-red-700" : 
-                              isMedium ? "bg-orange-100 text-orange-700" : 
-                              "bg-emerald-100 text-emerald-700"
-                            }`}>
-                              {zone.risk}
-                            </span>
-                          </div>
+              {loading ? "Predicting..." : "Predict Here"}
 
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5"><Users size={14}/> Pop:</span>
-                            <span className="font-semibold text-slate-900">{Number(zone.population || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                );
-              })}
-            </MapContainer>
+            </button>
+
           </div>
-        )}
+
+          {prediction && (
+
+            <div className="bg-white rounded-3xl p-6 shadow space-y-5">
+
+              <h2 className="text-xl font-bold">
+
+                Prediction
+
+              </h2>
+
+              <div className="flex justify-between">
+
+                <div className="flex gap-2">
+
+                  <CloudRain />
+
+                  Rainfall
+
+                </div>
+
+                <strong>
+
+                  {prediction.Predicted_Rainfall_Next_Day} mm
+
+                </strong>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <div className="flex gap-2">
+
+                  <ThermometerSun />
+
+                  Max Temp
+
+                </div>
+
+                <strong>
+
+                  {prediction.Predicted_Max_Temperature_Next_Day} °C
+
+                </strong>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <div className="flex gap-2">
+
+                  <ThermometerSun />
+
+                  Min Temp
+
+                </div>
+
+                <strong>
+
+                  {prediction.Predicted_Min_Temperature_Next_Day} °C
+
+                </strong>
+
+              </div>
+
+              <Link
+                to="/recommendations"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-800"
+              >
+                View Recommendations
+              </Link>
+
+            </div>
+
+          )}
+
+        </div>
+
       </div>
 
-      {/* Interactive Legend */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          { label: "High Risk Zone", desc: "Temp > 40°C | Immediate action required", color: "bg-red-500", shadow: "shadow-red-500/20" },
-          { label: "Medium Risk Zone", desc: "Temp 35°C - 40°C | Monitor closely", color: "bg-orange-500", shadow: "shadow-orange-500/20" },
-          { label: "Low Risk Zone", desc: "Temp < 35°C | Safe levels", color: "bg-emerald-500", shadow: "shadow-emerald-500/20" },
-        ].map((item) => (
-          <div key={item.label} className={`flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 transition-transform hover:-translate-y-1`}>
-            <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${item.color} ${item.shadow} shadow-lg text-white`}>
-              <AlertTriangle size={18} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">{item.label}</h3>
-              <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
-
-export default HeatMap;
