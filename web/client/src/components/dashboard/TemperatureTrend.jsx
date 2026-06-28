@@ -77,8 +77,8 @@ export default function TemperatureTrend() {
 
             {/* Recharts Container */}
             <div className="h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">[cite: 7]
-                    <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>[cite: 7]
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" vertical={false} />
                         
                         <XAxis 
@@ -88,7 +88,7 @@ export default function TemperatureTrend() {
                           tickLine={false}
                           axisLine={false}
                           dy={10}
-                        />[cite: 7]
+                        />
                         
                         <YAxis 
                           stroke="#ffffff50" 
@@ -96,9 +96,9 @@ export default function TemperatureTrend() {
                           tickLine={false}
                           axisLine={false}
                           dx={-10}
-                        />[cite: 7]
+                        />
                         
-                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff30', strokeWidth: 1, strokeDasharray: '5 5' }} />[cite: 7]
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff30', strokeWidth: 1, strokeDasharray: '5 5' }} />
                         
                         {/* Actual Temp Line */}
                         <Line
@@ -108,7 +108,7 @@ export default function TemperatureTrend() {
                             strokeWidth={3}
                             dot={{ fill: '#040B16', stroke: '#00F0FF', strokeWidth: 2, r: 4 }}
                             activeDot={{ r: 6, fill: '#00F0FF', shadow: '0 0 10px #00F0FF' }}
-                        />[cite: 7]
+                        />
 
                         {/* XGBoost Forecast Line */}
                         <Line
@@ -119,9 +119,9 @@ export default function TemperatureTrend() {
                             strokeDasharray="5 5"
                             dot={{ fill: '#040B16', stroke: '#FF5500', strokeWidth: 2, r: 4 }}
                             activeDot={{ r: 6, fill: '#FF5500' }}
-                        />[cite: 7]
-                    </LineChart>[cite: 7]
-                </ResponsiveContainer>[cite: 7]
+                        />
+                    </LineChart>
+                </ResponsiveContainer>
             </div>
             
             {/* Legend */}

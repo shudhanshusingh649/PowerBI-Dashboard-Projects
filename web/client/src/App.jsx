@@ -10,7 +10,6 @@ import Recommendations from "./pages/Recommendations";
 import HeatMap from "./pages/HeatMap";
 import Simulator from "./pages/Simulator";
 
-// A high-tech fallback loader
 const TechLoader = () => (
   <div className="flex h-screen w-full items-center justify-center bg-[#040B16] text-[#00F0FF] font-[Rajdhani] text-2xl tracking-widest animate-pulse">
     INITIALIZING ISRO DIGITAL TWIN...
