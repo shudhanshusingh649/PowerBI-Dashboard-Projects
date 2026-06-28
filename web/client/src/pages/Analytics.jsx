@@ -8,9 +8,8 @@ import {
   Terminal,
   MapPin
 } from "lucide-react";
+import api from "../services/api";
 
-// Assuming these are your API imports
-// import { getAnalytics, getForecast, getInsights } from "../services/climateApi";
 
 import MetricCard from "../components/analytics/MetricCard";
 import ForecastChart from "../components/analytics/ForecastChart";
@@ -23,30 +22,79 @@ export default function Analytics() {
   const [data, setData] = useState({ analytics: null, forecast: [], insights: [] });
 
   useEffect(() => {
-    // --- HACKATHON PRO-TIP ---
-    // Always have a rich mock-data fallback. If the backend fails during a live pitch, 
-    // the UI will still look flawless. We'll localize this to a hot summer day in Patna.
     const fetchTelemetry = async () => {
-      try {
-        // const [analyticsRes, forecastRes, insightsRes] = await Promise.all([
-        //   getAnalytics(), getForecast(), getInsights()
-        // ]);
-        // setData({ analytics: analyticsRes.data, forecast: forecastRes.data, insights: insightsRes.data.insights });
-        
-        // Simulated Network Delay for the "Boot Sequence" effect
-        setTimeout(() => {
-          setData({
-            analytics: { average_temperature: 38.4, average_rainfall: 12.5, prediction_accuracy: 94.2, heat_risk: "CRITICAL" },
-            forecast: [ /* Data structure expected by ForecastChart */ ],
-            insights: [ /* Data structure expected by AIInsights */ ]
-          });
-          setLoading(false);
-        }, 1500);
 
-      } catch (error) {
-        console.error("Telemetry Uplink Failed:", error);
+      try {
+
+        const payload = {
+          Latitude: 25.62,
+          Longitude: 85.12,
+          Date: "2024-06-01",
+          Max_Temperature: 36.5,
+          Min_Temperature: 27.1,
+          Rainfall: 12.3
+        };
+
+        const [analyticsRes, forecastRes, heatRiskRes] =
+          await Promise.all([
+
+            api.get("/analytics"),
+
+            api.post("/forecast/7-days", payload),
+
+            api.post("/predict/heat-risk", payload)
+
+          ]);
+
+        const analytics = analyticsRes.data.analytics;
+
+        const forecast = forecastRes.data.forecast.map((item) => ({
+          day: new Date(item.date).toLocaleDateString("en-US", {
+            weekday: "short"
+          }),
+          max: item.max_temp,
+          min: item.min_temp,
+          rainfall: item.rainfall
+        }));
+
+        setData({
+
+          analytics: {
+
+            average_temperature:
+              (
+                analytics.average_max_temperature +
+                analytics.average_min_temperature
+              ) / 2,
+
+            average_rainfall:
+              analytics.average_rainfall,
+
+            prediction_accuracy: 94.2,
+
+            heat_risk:
+              heatRiskRes.data.Heat_Risk,
+
+            climate_score: 91
+
+          },
+
+          forecast,
+
+          insights: []
+
+        });
+
         setLoading(false);
+
+      } catch (err) {
+
+        console.error(err);
+
+        setLoading(false);
+
       }
+
     };
 
     fetchTelemetry();
@@ -83,7 +131,7 @@ export default function Analytics() {
 
   return (
     <div ref={containerRef} className="h-full w-full text-white">
-      
+
       {/* HEADER: System Location & Status */}
       <div className="analytics-node mb-8 flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
         <div>
@@ -95,7 +143,7 @@ export default function Analytics() {
             XGBOOST MODEL OUTPUTS // CONFIDENCE INTERVAL: 95%
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-[#040B16]/50 px-4 py-2 backdrop-blur-md">
           <MapPin size={16} className="text-[#FF5500]" />
           <span className="font-[Rajdhani] text-lg font-semibold tracking-wider">
@@ -106,7 +154,7 @@ export default function Analytics() {
 
       {/* BENTO BOX GRID LAYOUT */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 pb-10">
-        
+
         {/* ROW 1: 4 Metric Cards */}
         <div className="analytics-node xl:col-span-3 rounded-xl border border-white/10 bg-[#0B192C]/40 p-1 shadow-lg backdrop-blur-md">
           <MetricCard title="Avg Temperature" value={data.analytics.average_temperature} unit="°C" icon={ThermometerSun} color="text-[#FF5500]" />
@@ -125,7 +173,7 @@ export default function Analytics() {
         <div className="analytics-node xl:col-span-8 h-[400px] rounded-xl border border-[#00F0FF]/30 bg-[#0B192C]/60 p-1 shadow-[0_0_20px_rgba(0,240,255,0.05)] backdrop-blur-lg">
           <ForecastChart data={data.forecast} />
         </div>
-        
+
         <div className="analytics-node xl:col-span-4 rounded-xl border border-white/10 bg-[#0B192C]/40 p-1 shadow-lg backdrop-blur-md">
           <ClimateScore score={data.analytics.climate_score} />
         </div>

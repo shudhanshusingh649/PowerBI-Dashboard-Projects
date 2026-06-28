@@ -7,35 +7,54 @@ import {
   Wifi
 } from "lucide-react";
 
-// import api from "../../services/api";
+import api from "../../services/api";
 
 export default function BackendStatus() {
-  const [health, setHealth] = useState({ status: "INITIALIZING...", ping: null });
+  const [health, setHealth] = useState({
+    status: "INITIALIZING...",
+    ping: null,
+    models: {}
+  });
 
   useEffect(() => {
-    const startTime = Date.now();
-    
-    // Keep your real API call, but adding a fallback for a guaranteed "Wow" factor 
-    // during the hackathon pitch just in case the network is slow.
-    /*
-    api.get("/health")
-      .then((res) => setHealth({ status: res.data.status || "ONLINE", ping: Date.now() - startTime }))
-      .catch(() => setHealth({ status: "ERR_CONNECTION", ping: 0 }));
-    */
+    async function checkHealth() {
+      const startTime = performance.now();
 
-    // Simulated quick load for the UI feel
-    const timer = setTimeout(() => {
-      setHealth({ status: "ONLINE", ping: 24 });
-    }, 1200);
-    
-    return () => clearTimeout(timer);
+      try {
+        const res = await api.get("/health");
+
+        const latency = Math.round(performance.now() - startTime);
+
+        setHealth({
+          status: res.data.status,
+          ping: latency,
+          models: res.data.models_loaded
+        });
+
+      } catch (err) {
+        setHealth({
+          status: "OFFLINE",
+          ping: null,
+          models: {}
+        });
+      }
+    }
+
+    checkHealth();
+
+    const interval = setInterval(checkHealth, 10000);
+
+    return () => clearInterval(interval);
+
   }, []);
 
-  const isOnline = health.status === "ONLINE";
+  const isOnline =
+    health.status === "Healthy" ||
+    health.status === "ONLINE";
 
   return (
     <div className="flex h-full flex-col justify-between rounded-xl p-6 bg-black/20">
-      
+
       {/* Header with Live Ping */}
       <div className="flex items-center justify-between border-b border-white/10 pb-4">
         <div>
@@ -47,7 +66,7 @@ export default function BackendStatus() {
             FASTAPI CONNECTION
           </p>
         </div>
-        
+
         <div className={`flex flex-col items-end ${isOnline ? "text-[#00FF66]" : "text-[#FF5500]"}`}>
           <div className="flex items-center gap-2">
             <Wifi size={16} className={isOnline ? "animate-pulse" : "opacity-50"} />
@@ -61,7 +80,7 @@ export default function BackendStatus() {
 
       {/* 2x2 Grid of Micro-Services */}
       <div className="mt-4 grid grid-cols-2 gap-3">
-        
+
         {/* Module 1: Core API */}
         <div className="group rounded-lg border border-white/10 bg-[#040B16]/50 p-3 transition-colors hover:border-[#00F0FF]/40">
           <div className="flex items-center justify-between mb-2">
