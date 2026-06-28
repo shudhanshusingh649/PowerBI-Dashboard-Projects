@@ -1,193 +1,75 @@
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
-import joblib
-import pandas as pd
-import numpy as np
-from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
+from .forecast import generate_forecast
+from .simulation import simulate_city
+from .recommendation import generate_recommendation
+from .dashboard import dashboard_data
+from .analytics import get_analytics
+from .anomaly import detect_anomaly
+from .digital_twin import run_digital_twin
 import traceback
-BASE_DIR = Path(__file__).resolve().parent.parent
+from .feature_engineering import create_features
+from .schemas import ClimateInput
+from .model_loader import (
+    rainfall_model,
+    max_temp_model,
+    min_temp_model
+)
 app = FastAPI(
     title="ISRO Climate Prediction API",
-    description="Climate Prediction using XGBoost Models",
-    version="3.0"
+    description="AI Powered Climate Prediction Platform",
+    version="4.0"
 )
-rainfall_model = joblib.load(
-    BASE_DIR / "Models" / "rainfall_model.pkl"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
-max_temp_model = joblib.load(
-    BASE_DIR / "Models" / "max_temperature_model.pkl"
-)
-
-min_temp_model = joblib.load(
-    BASE_DIR / "Models" / "min_temperature_model.pkl"
-)
-print(type(rainfall_model))
-print(type(max_temp_model))
-print(type(min_temp_model))
-@app.get("/")
+@app.get("/", tags=["Home"])
 def home():
 
     return {
 
-        "Project": "ISRO Climate Prediction API",
+        "Project": "Urban Heat Platform",
+
+        "Version": "4.0",
 
         "Status": "Running Successfully",
 
-        "Models": [
+        "Developer": "IIT Patna",
 
-            "Rainfall",
+        "Available_APIs": [
 
-            "Maximum Temperature",
+            "/dashboard",
 
-            "Minimum Temperature"
+            "/health",
+
+            "/predict/rainfall",
+
+            "/predict/max-temperature",
+
+            "/predict/min-temperature",
+
+            "/predict/all",
+
+            "/predict/heat-index",
+
+            "/predict/heat-risk",
+
+            "/predict/uhi",
+
+            "/simulate",
+
+            "/recommendation",
+
+            "/forecast/7-days"
 
         ]
+
     }
-class ClimateInput(BaseModel):
-
-    Latitude: float = Field(
-        ...,
-        ge=-90,
-        le=90,
-        description="Latitude must be between -90 and 90"
-    )
-
-    Longitude: float = Field(
-        ...,
-        ge=-180,
-        le=180,
-        description="Longitude must be between -180 and 180"
-    )
-
-    Date: str = Field(
-        ...,
-        description="Format: YYYY-MM-DD"
-    )
-
-    Max_Temperature: float = Field(
-        ...,
-        ge=-50,
-        le=60,
-        description="Maximum Temperature in °C"
-    )
-
-    Min_Temperature: float = Field(
-        ...,
-        ge=-60,
-        le=50,
-        description="Minimum Temperature in °C"
-    )
-
-    Rainfall: float = Field(
-        ...,
-        ge=0,
-        le=1000,
-        description="Rainfall in mm"
-    )
-def create_features(data: ClimateInput):
-
-    input_date = pd.to_datetime(data.Date)
-
-    year = input_date.year
-    month = input_date.month
-    day = input_date.day
-    day_of_year = input_date.dayofyear
-
-    if month in [12, 1, 2]:
-        season = 0
-    elif month in [3, 4, 5]:
-        season = 1
-    elif month in [6, 7, 8, 9]:
-        season = 2
-    else:
-        season = 3
-
-    temp_difference = (
-        data.Max_Temperature -
-        data.Min_Temperature
-    )
-
-    avg_temperature = (
-        data.Max_Temperature +
-        data.Min_Temperature
-    ) / 2
-
-    temp_range = temp_difference
-
-    month_sin = np.sin(
-        2 * np.pi * month / 12
-    )
-
-    month_cos = np.cos(
-        2 * np.pi * month / 12
-    )
-
-    day_sin = np.sin(
-        2 * np.pi * day_of_year / 365
-    )
-
-    day_cos = np.cos(
-        2 * np.pi * day_of_year / 365
-    )
-
-    latitude_square = data.Latitude ** 2
-
-    longitude_square = data.Longitude ** 2
-
-    lat_long = (
-        data.Latitude *
-        data.Longitude
-    )
-
-    monsoon = 1 if month in [6,7,8,9] else 0
-
-    return pd.DataFrame([{
-
-        "Latitude": data.Latitude,
-
-        "Longitude": data.Longitude,
-
-        "Max_Temperature": data.Max_Temperature,
-
-        "Min_Temperature": data.Min_Temperature,
-
-        "Rainfall": data.Rainfall,
-
-        "Year": year,
-
-        "Month": month,
-
-        "Day": day,
-
-        "DayOfYear": day_of_year,
-
-        "Season": season,
-
-        "Temp_Difference": temp_difference,
-
-        "Avg_Temperature": avg_temperature,
-
-        "Temp_Range": temp_range,
-
-        "Month_sin": month_sin,
-
-        "Month_cos": month_cos,
-
-        "Day_sin": day_sin,
-
-        "Day_cos": day_cos,
-
-        "Latitude_Square": latitude_square,
-
-        "Longitude_Square": longitude_square,
-
-        "Lat_Long": lat_long,
-
-        "Monsoon": monsoon
-
-    }])
 @app.post("/predict/rainfall", tags=["Prediction"])
 def predict_rainfall(data: ClimateInput):
 
@@ -430,5 +312,165 @@ def health_check():
             "Minimum_Temperature": True
 
         }
+
+    }
+
+
+# DASHBOARD API
+@app.post("/dashboard", tags=["Dashboard"])
+def dashboard(data: ClimateInput):
+
+    return {
+
+        "status":"success",
+
+        "dashboard": dashboard_data(data)
+
+    }
+
+# HEAT INDEX API
+@app.post("/predict/heat-index", tags=["Prediction"])
+def predict_heat_index(data: ClimateInput):
+
+    avg_temp = (data.Max_Temperature + data.Min_Temperature) / 2
+
+    heat_index = avg_temp + (0.1 * data.Rainfall)
+
+    return {
+
+        "status": "success",
+
+        "Average_Temperature": round(avg_temp,2),
+
+        "Heat_Index": round(heat_index,2),
+
+        "Unit": "°C"
+
+    }
+
+
+# HEAT RISK API
+@app.post("/predict/heat-risk", tags=["Prediction"])
+def predict_heat_risk(data: ClimateInput):
+
+    avg_temp = (data.Max_Temperature + data.Min_Temperature) / 2
+
+    if avg_temp < 30:
+
+        risk = "Low"
+
+        color = "Green"
+
+    elif avg_temp < 35:
+
+        risk = "Moderate"
+
+        color = "Yellow"
+
+    elif avg_temp < 40:
+
+        risk = "High"
+
+        color = "Orange"
+
+    else:
+
+        risk = "Extreme"
+
+        color = "Red"
+
+    return {
+
+        "status":"success",
+
+        "Heat_Risk":risk,
+
+        "Color":color,
+
+        "Average_Temperature":round(avg_temp,2)
+
+    }
+
+# UHI API
+@app.post("/predict/uhi", tags=["Prediction"])
+def predict_uhi(data: ClimateInput):
+
+    uhi = data.Max_Temperature - data.Min_Temperature
+
+    return {
+
+        "status":"success",
+
+        "Urban_Heat_Island_Index":round(uhi,2),
+
+        "Unit":"°C"
+
+    }
+
+
+# SIMULATION API
+@app.post("/simulate", tags=["Simulation"])
+def simulate(data: ClimateInput):
+
+    result = simulate_city(data)
+
+    return {
+        "status":"success",
+        "simulation":result
+    }
+# RECOMMENDATION API
+@app.post("/recommendation", tags=["Recommendation"])
+def recommendation(data: ClimateInput):
+
+    return {
+        "status": "success",
+        "result": generate_recommendation(data)
+    }
+
+# To get real data 
+@app.post("/forecast/7-days", tags=["Forecast"])
+def forecast(data: ClimateInput):
+
+    return {
+        "status": "success",
+        "forecast": generate_forecast(data)
+    }
+
+# Api for analytics
+@app.get("/analytics", tags=["Analytics"])
+def analytics():
+
+    return {
+
+        "status": "success",
+
+        "analytics": get_analytics()
+
+    }
+
+# Api for anomaly
+@app.post("/anomaly", tags=["Analytics"])
+def anomaly(data: ClimateInput):
+
+    result = detect_anomaly(
+        data.Max_Temperature,
+        data.Min_Temperature,
+        data.Rainfall
+    )
+
+    return {
+        "status": "success",
+        "result": result
+    }
+
+# Api for digital_twin 
+@app.post("/digital-twin", tags=["Digital Twin"])
+def digital_twin(data: ClimateInput):
+
+    return {
+
+        "status":"success",
+
+        "digital_twin":run_digital_twin(data)
 
     }
