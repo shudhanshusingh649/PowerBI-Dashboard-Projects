@@ -1,44 +1,29 @@
 import pandas as pd
 from pathlib import Path
+import traceback
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "Final_Dataset" / "climate_data_2010_2025.csv"
 
 def get_analytics():
 
-    df = pd.read_csv(DATA_PATH)
+    try:
+        print("BASE_DIR:", BASE_DIR)
+        print("DATA_PATH:", DATA_PATH)
+        print("FILE EXISTS:", DATA_PATH.exists())
 
-    # Date se Year nikalo
-    df["Date"] = pd.to_datetime(df["Date"])
-    df["Year"] = df["Date"].dt.year
+        df = pd.read_csv(DATA_PATH)
 
-    total_records = len(df)
+        print(df.head())
+        print(df.columns.tolist())
 
-    avg_rainfall = round(df["Rainfall"].mean(), 2)
-    avg_max_temp = round(df["Max_Temperature"].mean(), 2)
-    avg_min_temp = round(df["Min_Temperature"].mean(), 2)
+        df["Date"] = pd.to_datetime(df["Date"])
+        df["Year"] = df["Date"].dt.year
 
-    hottest_year = (
-        df.groupby("Year")["Max_Temperature"]
-        .mean()
-        .idxmax()
-    )
+        return {
+            "total_records": len(df)
+        }
 
-    wettest_year = (
-        df.groupby("Year")["Rainfall"]
-        .mean()
-        .idxmax()
-    )
-
-    return {
-        "total_records": total_records,
-        "date_range": {
-            "start": str(df["Date"].min().date()),
-            "end": str(df["Date"].max().date())
-        },
-        "average_rainfall": avg_rainfall,
-        "average_max_temperature": avg_max_temp,
-        "average_min_temperature": avg_min_temp,
-        "hottest_year": int(hottest_year),
-        "wettest_year": int(wettest_year)
-    }
+    except Exception:
+        print(traceback.format_exc())
+        raise
