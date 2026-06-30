@@ -439,15 +439,15 @@ def forecast(data: ClimateInput):
 # Api for analytics
 @app.get("/analytics", tags=["Analytics"])
 def analytics():
+    try:
+        return {
+            "status": "success",
+            "analytics": get_analytics()
+        }
 
-    return {
-
-        "status": "success",
-
-        "analytics": get_analytics()
-
-    }
-
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 # Api for anomaly
 @app.post("/anomaly", tags=["Analytics"])
 def anomaly(data: ClimateInput):
